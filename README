@@ -1,0 +1,63 @@
+OVERVIEW
+
+Piggy is a script I wrote to transcode my massive (and well-organized)
+collection of FLAC and Ogg Vorbis music files into MP3s.  It's called "piggy"
+because it piggybacks off of freely-available decoders and encoders. It also
+scales to run as many jobs in parallel as you have cores, so assuming your disks
+can keep up, you should benefit tremendously. Today, piggy supports decoding
+from and encoding into these formats:
+
+- FLAC
+- Ogg Vorbis
+- MP3
+- DRM-free AAC (Decode Only)
+
+A disclaimer: I hacked this together in 2007 and subsequently ported it to
+Python 3 a couple years later. It's not meant to be robust nor secure, and it
+makes no serious attempt to handle metadata other than the basic tag information
+such as artist, album, title, track number, and year. I've only tried it in
+Gentoo Linux and Mac OS X.
+
+
+DEPENDENCIES
+
+You will need at least some of these packages:
+
+- python32
+- faad2
+- flac
+- lame
+- madplay
+- vorbis-tools
+
+
+USAGE
+
+Make sure piggy.py and piggy.sh live in the same directory. Then, edit piggy.sh
+and set the PYTHON variable to the proper name of your Python 3 interpreter.
+
+Piggy works like this: you supply it with a list of input directories, an output
+directory, and a list of output formats you want to convert your music to. It
+scans the input directories for music files and creates a mirrored directory
+hierarchy of your transcoded songs in the output folder for every format you
+specify.
+
+At the very end of piggy.py, there is a list of predefined encoder settings.
+Pick however many of them you wish to use and specify them on the command line.
+
+The general format is:
+
+    $ piggy.sh -s setting1 [-s setting2] [...] \
+               -i /path/to/input/folder/1 [-i /path/to/input/folder/2] [...] \
+               /path/to/output/folder
+
+Here's a more concrete example that scans ~/Music for all my music and creates
+two mirrored hierarchies, one in ~/Desktop/vorbis-q5 for the resulting Ogg
+Vorbis files, and one in ~/Desktop/mp3-vbr2 for the resulting MP3 files:
+
+    $ piggy.sh -s oggenc-q5 -s lame-vbr2 -i ~/Music ~/Desktop
+
+Enjoy!
+
+Serban Giuroiu
+http://serban.org
