@@ -10,6 +10,7 @@ from and encoding into these formats:
 - FLAC
 - Ogg Vorbis
 - MP3
+- ALAC (Mac OS X Only)
 - DRM-free AAC (Decode Only)
 
 A disclaimer: I hacked this together in 2007 and subsequently ported it to
@@ -24,6 +25,7 @@ DEPENDENCIES
 You will need at least some of these packages:
 
 - python32
+- AtomicParsley
 - faad2
 - flac
 - lame

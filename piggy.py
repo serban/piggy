@@ -36,6 +36,8 @@ import time
 
 PATH_PREFIX             = ''   # /usr/bin, /usr/local/bin, etc.
 
+AFCONVERT               = os.path.join(PATH_PREFIX, 'afconvert')
+ATOMICPARSELEY          = os.path.join(PATH_PREFIX, 'AtomicParsley')
 FAAD                    = os.path.join(PATH_PREFIX, 'faad')
 FLAC                    = os.path.join(PATH_PREFIX, 'flac')
 LAME                    = os.path.join(PATH_PREFIX, 'lame')
@@ -48,6 +50,7 @@ VORBISCOMMENT           = os.path.join(PATH_PREFIX, 'vorbiscomment')
 TMPDIR                  = '/tmp'
 NAME                    = 'piggy'
 
+ALAC_FILE_EXTENSIONS    = ['m4a']
 AIFF_FILE_EXTENSIONS    = ['aif', 'aiff']
 FLAC_FILE_EXTENSIONS    = ['flac']
 MP3_FILE_EXTENSIONS     = ['mp3']
@@ -210,6 +213,62 @@ class AIFFAudioFile(PCMAudioFile):
 
 class CompressedAudioFile(AudioFile):
     pass
+
+class ALACAudioFile(CompressedAudioFile):
+    def decode(self):
+        if self.decodedAudioFile:
+            return self.decodedAudioFile
+
+        outputPath = self.generateTempFileName(self.name + '.wav')
+
+        # TODO: Hmm... we're assuming 16 bits per sample. Is this a good idea?
+        exitCode = runProcess(AFCONVERT + ' -f WAVE -d LEI16 "' + escape(self.path) + '" "' + escape(outputPath) + '"')
+        if exitCode == 0:
+            decodedAudioFile = WaveAudioFile(outputPath)
+            decodedAudioFile.tags = self.tags
+            self.decodedAudioFile = decodedAudioFile
+            return decodedAudioFile
+        else:
+            try:
+                deleteFile(outputPath)
+            except OSError:
+                pass
+            return None
+
+    def loadTags(self):
+        tags = subprocess.getoutput(ATOMICPARSELEY + ' "' + escape(self.path) + '" -t')
+
+        ar = re.compile('Atom "©ART" contains: (.+)', re.IGNORECASE)
+        al = re.compile('Atom "©alb" contains: (.+)', re.IGNORECASE)
+        ti = re.compile('Atom "©nam" contains: (.+)', re.IGNORECASE)
+        tr = re.compile('Atom "trkn" contains: (.+)', re.IGNORECASE)
+        yr = re.compile('Atom "©day" contains: (\d+)', re.IGNORECASE)
+#        cm = re.compile('Atom "©cmt" contains: (.+)', re.IGNORECASE)
+
+        for line in tags.splitlines():
+            m = ar.match(line)
+            if m:
+                self.tags['artist'] = m.group(1)
+
+            m = al.match(line)
+            if m:
+                self.tags['album'] = m.group(1)
+
+            m = ti.match(line)
+            if m:
+                self.tags['title'] = m.group(1)
+
+            m = tr.match(line)
+            if m:
+                self.tags['track'] = m.group(1)
+
+            m = yr.match(line)
+            if m:
+                self.tags['year'] = m.group(1)
+
+#            m = cm.match(line)
+#            if m:
+#                self.tags['comment'] = m.group(1)
 
 class XiphAudioFile(CompressedAudioFile):
     def xiphLoadTags(self, tool):
@@ -404,6 +463,8 @@ class MP4AudioFile(CompressedAudioFile):
 #                self.tags['comment'] = m.group(1)
 
 def makeAudioFile(path):
+    # TODO: Need a more intelligent way other than file extension to tell a
+    #       filetype
     if os.path.isfile(path) and os.access(path, os.R_OK):
         name = os.path.basename(path)
 
@@ -412,8 +473,12 @@ def makeAudioFile(path):
         except IndexError:
             return None
 
+        # .m4a files can be either ALAC or MP4. Since ALAC comes first in this
+        # list, it masks MP4.
         if ext in AIFF_FILE_EXTENSIONS:
             return AIFFAudioFile(path)
+        elif ext in ALAC_FILE_EXTENSIONS:
+            return ALACAudioFile(path)
         elif ext in FLAC_FILE_EXTENSIONS:
             return FLACAudioFile(path)
         elif ext in MP3_FILE_EXTENSIONS:
@@ -441,6 +506,54 @@ class AudioEncoder(object):
         Return the encoded AudioFile if successful, None otherwise
         '''
         pass
+
+class ALACAudioEncoder(AudioEncoder):
+    def encode(self, audioFile, outputPath):
+        outputPath += '.m4a'
+
+        pcmAudioFile = audioFile.decode()
+
+        if pcmAudioFile == None:
+            return None
+
+        cmd = AFCONVERT + ' -d alac ' + self.opts + ' "' + escape(pcmAudioFile.path) + \
+                '" "' + escape(outputPath) + '"'
+        exitCode = runProcess(cmd)
+
+        if exitCode != 0:
+            try:
+                deleteFile(outputPath)
+            except OSError:
+                pass
+            return None
+
+        cmd = ATOMICPARSELEY + ' "' + escape(outputPath) + '" --overWrite'
+
+        if 'artist' in audioFile.tags:
+            cmd += ' --artist "' + escape(audioFile.tags['artist']) + '"'
+        if 'album' in audioFile.tags:
+            cmd += ' --album "' + escape(audioFile.tags['album']) + '"'
+        if 'title' in audioFile.tags:
+            cmd += ' --title "' + escape(audioFile.tags['title']) + '"'
+        if 'track' in audioFile.tags:
+            cmd += ' --tracknum "' + escape(audioFile.tags['track']) + '"'
+        if 'year' in audioFile.tags:
+            cmd += ' --year "' + escape(audioFile.tags['year']) + '"'
+        if 'comment' in audioFile.tags:
+            cmd += ' --comment "' + escape(audioFile.tags['comment']) + '"'
+
+        exitCode = runProcess(cmd)
+
+        if exitCode == 0:
+            encodedAudioFile = ALACAudioFile(outputPath)
+            encodedAudioFile.tags = audioFile.tags
+            return encodedAudioFile
+        else:
+            try:
+                deleteFile(outputPath)
+            except OSError:
+                pass
+            return None
 
 class FLACAudioEncoder(AudioEncoder):
     def encode(self, audioFile, outputPath):
@@ -821,6 +934,7 @@ def main():
 
 encoderSettings = [
 #                   NAME            FOLDER         EXTENSION    ENCODER
+    EncoderSetting('alac',          'alac',         'm4a',      ALACAudioEncoder('')),
     EncoderSetting('flac',          'flac',         'flac',     FLACAudioEncoder('--best --verify')),
     EncoderSetting('oggenc-q5',     'vorbis-q5',    'ogg',      OggencAudioEncoder('-q 5')),
     EncoderSetting('lame-vbr2',     'mp3-vbr2',     'mp3',      LAMEAudioEncoder('-m j -h --vbr-new -V 2 --id3v2-only --noreplaygain')),
@@ -828,7 +942,7 @@ encoderSettings = [
     EncoderSetting('lame-cbr256',   'mp3-cbr256',   'mp3',      LAMEAudioEncoder('-m j -h -b 256 --id3v2-only --noreplaygain')),
     EncoderSetting('lame-standard', 'mp3-standard', 'mp3',      LAMEAudioEncoder('--preset standard --id3v2-only --noreplaygain')),
     EncoderSetting('lame-extreme',  'mp3-extreme',  'mp3',      LAMEAudioEncoder('--preset extreme --id3v2-only --noreplaygain')),
-    EncoderSetting('lame-insane',   'mp3-insane',   'mp3',      LAMEAudioEncoder('--preset insane --id3v2-only --noreplaygain'))
+    EncoderSetting('lame-insane',   'mp3-insane',   'mp3',      LAMEAudioEncoder('--preset insane --id3v2-only --noreplaygain')),
 ]
 
 # ------------------------------------------------------------------------------
