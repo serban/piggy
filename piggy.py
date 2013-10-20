@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # vim:set ts=8 sw=4 sts=4 et:
 
-# Copyright (c) 2007-2012 Serban Giuroiu
+# Copyright (c) 2007-2013 Serban Giuroiu
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
