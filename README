@@ -24,7 +24,7 @@ DEPENDENCIES
 
 You will need at least some of these packages:
 
-- python32
+- python3
 - AtomicParsley
 - faad2
 - flac
@@ -35,8 +35,7 @@ You will need at least some of these packages:
 
 USAGE
 
-Make sure piggy.py and piggy.sh live in the same directory. Then, edit piggy.sh
-and set the PYTHON variable to the proper name of your Python 3 interpreter.
+You need Python 3 to run piggy.
 
 Piggy works like this: you supply it with a list of input directories, an output
 directory, and a list of output formats you want to convert your music to. It
@@ -49,15 +48,16 @@ Pick however many of them you wish to use and specify them on the command line.
 
 The general format is:
 
-    $ piggy.sh -s setting1 [-s setting2] [...] \
-               -i /path/to/input/folder/1 [-i /path/to/input/folder/2] [...] \
-               /path/to/output/folder
+  $ python3 piggy.py \
+    -s setting1 [-s setting2] [...] \
+    -i /path/to/input/folder/1 [-i /path/to/input/folder/2] [...] \
+    /path/to/output/folder
 
 Here's a more concrete example that scans ~/Music for all my music and creates
 two mirrored hierarchies, one in ~/Desktop/vorbis-q5 for the resulting Ogg
 Vorbis files, and one in ~/Desktop/mp3-vbr2 for the resulting MP3 files:
 
-    $ piggy.sh -s oggenc-q5 -s lame-vbr2 -i ~/Music ~/Desktop
+  $ python3 piggy.py -s oggenc-q5 -s lame-vbr2 -i ~/Music ~/Desktop
 
 Enjoy!
 

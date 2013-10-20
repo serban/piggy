@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # vim:set ts=8 sw=4 sts=4 et:
 
 # Copyright (c) 2007-2012 Serban Giuroiu
